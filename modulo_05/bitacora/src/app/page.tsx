@@ -1,3 +1,4 @@
+import Link from "next/link";
 import EntradaCard from "@/components/EntradaCard";
 
 const entradas = [
@@ -22,6 +23,13 @@ export default function Home() {
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-12">
       <h1 className="text-3xl font-bold">Mi bitácora</h1>
+      {/* Botón que lleva a la pantalla para crear una entrada */}
+      <Link
+        href="/nueva"
+        className="self-start rounded-lg bg-zinc-900 px-4 py-2 font-medium text-white hover:bg-zinc-700"
+      >
+        Nueva entrada
+      </Link>
       {entradas.map((entrada) => (
         <EntradaCard
           key={entrada.titulo}
