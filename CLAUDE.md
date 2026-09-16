@@ -1,4 +1,4 @@
-@AGENTS.md
+@modulo_05/bitacora/AGENTS.md
 
 # bitacora
 
