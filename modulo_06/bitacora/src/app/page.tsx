@@ -1,21 +1,26 @@
 import Link from "next/link";
-import EntradaCard from "@/components/EntradaCard";
+import ListaEntradas from "@/components/ListaEntradas";
+import type { Entrada } from "@/lib/types";
 
-const entradas = [
+// Entradas de ejemplo para mostrar en el home
+const entradas: Entrada[] = [
   {
+    id: "1",
     titulo: "Arranqué el proyecto",
     fecha: "12 de septiembre de 2026",
-    contenido: "Creé el proyecto con Next.js y aprendí a levantarlo con npm run dev.",
+    texto: "Creé el proyecto con Next.js y aprendí a levantarlo con npm run dev.",
   },
   {
+    id: "2",
     titulo: "Las carpetas son las rutas",
     fecha: "13 de septiembre de 2026",
-    contenido: "Armé las páginas de entradas, nueva y perfil dentro de src/app.",
+    texto: "Armé las páginas de entradas, nueva y perfil dentro de src/app.",
   },
   {
+    id: "3",
     titulo: "Mi primer componente",
     fecha: "14 de septiembre de 2026",
-    contenido: "Hice EntradaCard para mostrar cada entrada de la bitácora.",
+    texto: "Hice EntradaCard para mostrar cada entrada de la bitácora.",
   },
 ];
 
@@ -30,14 +35,7 @@ export default function Home() {
       >
         Nueva entrada
       </Link>
-      {entradas.map((entrada) => (
-        <EntradaCard
-          key={entrada.titulo}
-          titulo={entrada.titulo}
-          fecha={entrada.fecha}
-          contenido={entrada.contenido}
-        />
-      ))}
+      <ListaEntradas entradas={entradas} />
     </main>
   );
 }
