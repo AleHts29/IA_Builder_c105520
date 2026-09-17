@@ -13,7 +13,7 @@ export default function ListaEntradas({ entradas }: ListaEntradasProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div>
       {entradas.map((entrada) => (
         // EntradaCard espera "contenido", así que le pasamos entrada.texto
         <EntradaCard

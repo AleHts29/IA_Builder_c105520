@@ -1,26 +1,31 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Tokens del diseño "Dark dev": cada --color-* genera utilidades (bg-bg, text-accent, border-border...) */
+@theme {
+  --color-bg: #14161a; /* fondo de página */
+  --color-surface: #1b1e24; /* inputs, paneles */
+  --color-border: #24272e; /* separador entre entradas */
+  --color-tick-idle: #2f3540; /* marca lateral en reposo */
+  --color-accent: #5ccbb8; /* acento (mint) */
+  --color-accent-line: rgba(92, 203, 184, 0.35);
+  --color-accent-wash: rgba(92, 203, 184, 0.06);
+  --color-accent-ink: #0e1512; /* texto sobre acento lleno */
+  --color-title: #f0f1ec; /* títulos de entrada */
+  --color-brand: #e6e7e2; /* marca / texto fuerte */
+  --color-text: #a2a7b0; /* cuerpo */
+  --color-muted: #7c8290; /* fechas / meta */
+  --color-placeholder: #6b7280;
+  --color-disabled: #2a2e35; /* fondo del botón deshabilitado */
 }
 
+/* Fuentes Geist que carga layout.tsx */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
 }
