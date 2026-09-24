@@ -15,6 +15,8 @@ export default function EntradasPage() {
   const [error, setError] = useState<string | null>(null);
   // Entrada que se está editando; null = el formulario carga una nueva
   const [entradaAEditar, setEntradaAEditar] = useState<Entrada | null>(null);
+  // Entrada cuyos pendientes se están extrayendo; null = ninguna
+  const [analizandoId, setAnalizandoId] = useState<string | null>(null);
 
   // Trae las entradas de Supabase, de la más nueva a la más vieja
   const cargarEntradas = useCallback(async () => {
@@ -83,6 +85,8 @@ export default function EntradasPage() {
         entradaAEditar={entradaAEditar}
         onGuardar={handleGuardar}
         onCancelar={() => setEntradaAEditar(null)}
+        onAnalizando={setAnalizandoId}
+        onAnalizado={() => setAnalizandoId(null)}
       />
 
       <div className="mt-10">
@@ -98,7 +102,12 @@ export default function EntradasPage() {
         ) : (
           // Si no hay entradas, ListaEntradas muestra EstadoVacio
           // Al borrar una entrada, volvemos a consultar la tabla igual que al guardar
-          <ListaEntradas entradas={entradas} onBorrada={cargarEntradas} onEditar={handleEditar} />
+          <ListaEntradas
+            entradas={entradas}
+            onBorrada={cargarEntradas}
+            onEditar={handleEditar}
+            analizandoId={analizandoId}
+          />
         )}
       </div>
     </main>

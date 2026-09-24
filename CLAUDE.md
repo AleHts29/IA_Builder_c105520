@@ -17,5 +17,16 @@ Proyecto Next.js con App Router, TypeScript y Tailwind. No cambies ese stack.
 - No agregues librerías de formularios, validación ni manejo de estado.
 - Un pedido = un archivo, salvo que te diga lo contrario.
 
+## Reglas del módulo 8
+- Las llamadas al modelo salen SIEMPRE del servidor (route handlers en src/app/api/).
+  Nunca desde un componente cliente.
+- La API key del modelo va en .env.local SIN el prefijo NEXT_PUBLIC_.
+- Las instrucciones del sistema van en config.systemInstruction, separadas del
+  texto del usuario. Nunca concatenadas en el mismo string.
+- Toda respuesta del modelo se parsea con try/catch y se valida antes de usarse.
+- Si la IA falla, la operación principal (guardar la entrada) se completa igual.
+  Nunca se le muestra un error al usuario por una función de IA que falló.
+- Nunca llames al modelo dentro de un bucle ni reintentes sin un tope.
+
 ## Comandos
 - `npm run dev` — servidor de desarrollo en localhost:3000

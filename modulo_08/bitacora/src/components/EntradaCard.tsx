@@ -8,12 +8,25 @@ type EntradaCardProps = {
   titulo: string;
   fecha: string;
   contenido: string;
+  // Compromisos que la IA extrajo del texto; puede no haber ninguno
+  pendientes: string[] | null;
+  // true mientras la IA analiza esta entrada
+  analizando?: boolean;
   onBorrada: () => void | Promise<void>;
   onEditar: () => void;
 };
 
 // Entrada sin tarjeta: separador inferior y marca lateral que se pinta de acento en hover
-export default function EntradaCard({ id, titulo, fecha, contenido, onBorrada, onEditar }: EntradaCardProps) {
+export default function EntradaCard({
+  id,
+  titulo,
+  fecha,
+  contenido,
+  pendientes,
+  analizando,
+  onBorrada,
+  onEditar,
+}: EntradaCardProps) {
   const [borrando, setBorrando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +83,21 @@ export default function EntradaCard({ id, titulo, fecha, contenido, onBorrada, o
       </div>
       <h2 className="mb-1.5 text-[1.08rem] font-semibold tracking-tight text-title">{titulo}</h2>
       <p className="max-w-[44ch] text-[0.9rem] text-text">{contenido}</p>
+      {/* Mientras la IA analiza, ocupa el lugar de los pendientes */}
+      {analizando ? (
+        <p className="mt-3 font-mono text-[0.7rem] text-muted">Analizando la nota...</p>
+      ) : null}
+      {/* Sección opcional: sólo si la IA encontró compromisos en el texto */}
+      {!analizando && pendientes !== null && pendientes.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-1 font-mono text-[0.7rem] text-muted">Pendientes</p>
+          <ul className="max-w-[44ch] list-disc pl-4 text-[0.85rem] text-text marker:text-accent">
+            {pendientes.map((pendiente) => (
+              <li key={pendiente}>{pendiente}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {error !== null && (
         <p role="alert" className="mt-2 text-[0.82rem] text-red-300">
           {error}

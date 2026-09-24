@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { actualizarEntrada, crearEntrada, extraerYGuardarPendientes } from "@/lib/entradas";
 import { supabase } from "@/lib/supabase";
 import type { DatosEntrada, Entrada } from "@/lib/types";
 
@@ -9,6 +10,10 @@ type FormularioEntradaProps = {
   // Si viene, el formulario arranca con sus datos y al guardar hace update en vez de insert
   entradaAEditar?: Entrada | null;
   onCancelar?: () => void;
+  // Avisan cuándo empieza y cuándo termina la extracción de pendientes (salga bien o mal).
+  // Son opcionales: /nueva usa el formulario sin ellas.
+  onAnalizando?: (id: string) => void;
+  onAnalizado?: () => void;
 };
 
 const MAXIMO_TEXTO = 5000;
@@ -29,7 +34,13 @@ function validarEntrada(titulo: string, texto: string): string | null {
 
 // Formulario para cargar una entrada nueva o editar una existente
 // Los campos arrancan con los datos de entradaAEditar: quien lo usa le pone una key para reiniciarlo
-export default function FormularioEntrada({ onGuardar, entradaAEditar, onCancelar }: FormularioEntradaProps) {
+export default function FormularioEntrada({
+  onGuardar,
+  entradaAEditar,
+  onCancelar,
+  onAnalizando,
+  onAnalizado,
+}: FormularioEntradaProps) {
   const [titulo, setTitulo] = useState(entradaAEditar?.titulo ?? "");
   const [texto, setTexto] = useState(entradaAEditar?.texto ?? "");
   const [guardando, setGuardando] = useState(false);
@@ -65,12 +76,7 @@ export default function FormularioEntrada({ onGuardar, entradaAEditar, onCancela
         texto: texto.trim(),
       };
       if (entradaAEditar) {
-        // Edición: siempre filtrando por id; .select() devuelve las filas cambiadas
-        const { data, error: errorUpdate } = await supabase
-          .from("entradas")
-          .update(entrada)
-          .eq("id", entradaAEditar.id)
-          .select();
+        const { data, error: errorUpdate } = await actualizarEntrada(entradaAEditar.id, entrada);
         if (errorUpdate) {
           throw errorUpdate;
         }
@@ -79,22 +85,44 @@ export default function FormularioEntrada({ onGuardar, entradaAEditar, onCancela
           setError("No se guardaron los cambios: puede que la entrada ya no exista. Recargá la página.");
           return;
         }
+        await onGuardar(entrada);
+        // Limpiamos los campos después de guardar
+        setTitulo("");
+        setTexto("");
       } else {
-        const { error: errorInsert } = await supabase
-          .from("entradas")
-          .insert({ ...entrada, user_id: datosUsuario.user.id });
+        const { data, error: errorInsert } = await crearEntrada({
+          ...entrada,
+          user_id: datosUsuario.user.id,
+        });
         // Si el insert falla, lo mandamos al catch para mostrar el mensaje de error
         if (errorInsert) {
           throw errorInsert;
         }
+
+        // Primero mostramos la entrada: limpiamos los campos y refrescamos la lista
+        setTitulo("");
+        setTexto("");
+        await onGuardar(entrada);
+
+        // Después, en segundo plano, los pendientes. Sin await: no bloquea el formulario
+        // y si falla no muestra ningún error, sólo no habrá pendientes.
+        const creada = data?.[0];
+        if (creada) {
+          onAnalizando?.(creada.id);
+          extraerYGuardarPendientes(creada.id, entrada.texto)
+            .then(async (pendientes) => {
+              // Refrescamos de nuevo para que la lista muestre los pendientes ya guardados
+              if (pendientes !== null) {
+                await onGuardar(entrada);
+              }
+            })
+            // Avisamos que terminó pase lo que pase, para que se saque el "Analizando..."
+            .finally(() => onAnalizado?.());
+        }
       }
-      await onGuardar(entrada);
-      // Limpiamos los campos después de guardar
-      setTitulo("");
-      setTexto("");
     } catch (e) {
       // El detalle técnico va a la consola; al usuario le mostramos algo entendible
-      console.error("Falló guardarEntrada:", e);
+      console.error("Falló el guardado de la entrada:", e);
       setError("No pudimos guardar la entrada. Probá de nuevo en unos segundos.");
     } finally {
       setGuardando(false);
