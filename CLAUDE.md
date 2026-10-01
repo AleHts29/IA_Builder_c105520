@@ -28,5 +28,16 @@ Proyecto Next.js con App Router, TypeScript y Tailwind. No cambies ese stack.
   Nunca se le muestra un error al usuario por una función de IA que falló.
 - Nunca llames al modelo dentro de un bucle ni reintentes sin un tope.
 
+## Reglas del módulo 10
+- Toda búsqueda vectorial filtra por el usuario de la sesión, con auth.uid()
+  dentro de la función SQL. Nunca aceptes el user_id como parámetro del cliente.
+- El modelo responde ÚNICAMENTE con los fragmentos recuperados. Si no están,
+  la respuesta es "no encontré esa información".
+- Toda respuesta del RAG muestra sus fuentes en la interfaz.
+- Si hay agente: tope de vueltas siempre, y el userId sale de la sesión.
+- Ninguna herramienta que escriba corre sin confirmación humana.
+- No agregues librerías de RAG ni frameworks de agentes: Supabase y el SDK
+  que ya tenemos alcanzan.
+
 ## Comandos
 - `npm run dev` — servidor de desarrollo en localhost:3000

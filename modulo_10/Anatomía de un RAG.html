@@ -1,0 +1,677 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Anatomía de un RAG</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: columna única de 880px; cada paso es una fila con su estructura de datos real debajo */
+:root {
+  --bg: #F7F7FA;
+  --surface: #FFFFFF;
+  --surface-sunk: #EFEFF4;
+  --fg: #1A1A22;
+  --fg-muted: #5E5E70;
+  --fg-faint: #8C8C9E;
+  --border: #DEDEE7;
+  --border-strong: #C4C4D2;
+  --code: #4B3FA8;
+  --code-bg: #EFEDFB;
+  --model: #0F6E56;
+  --model-bg: #E1F5EE;
+  --data: #99411D;
+  --data-bg: #FAEDE7;
+  --font-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131318;
+    --surface: #1C1C23;
+    --surface-sunk: #101015;
+    --fg: #EDEDF2;
+    --fg-muted: #A5A5B8;
+    --fg-faint: #78788A;
+    --border: #2E2E39;
+    --border-strong: #43434F;
+    --code: #AFA9EC;
+    --code-bg: #26224A;
+    --model: #5DCAA5;
+    --model-bg: #0C3830;
+    --data: #F0997B;
+    --data-bg: #43200F;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131318;
+  --surface: #1C1C23;
+  --surface-sunk: #101015;
+  --fg: #EDEDF2;
+  --fg-muted: #A5A5B8;
+  --fg-faint: #78788A;
+  --border: #2E2E39;
+  --border-strong: #43434F;
+  --code: #AFA9EC;
+  --code-bg: #26224A;
+  --model: #5DCAA5;
+  --model-bg: #0C3830;
+  --data: #F0997B;
+  --data-bg: #43200F;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0;
+  padding-inline: 20px;
+  padding-block: 0 72px;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+
+header { padding-block: 56px 40px; border-bottom: 1px solid var(--border); }
+h1 {
+  font-size: clamp(34px, 6vw, 52px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  margin: 0 0 16px;
+  text-wrap: balance;
+}
+.sub { font-size: 17px; color: var(--fg-muted); margin: 0; max-width: 58ch; }
+
+.intro { padding-block: 40px 4px; }
+.lede { font-size: 17.5px; color: var(--fg); margin: 0 0 24px; max-width: 64ch; }
+.lede strong, .intro p strong { font-weight: 600; }
+.intro > p { color: var(--fg-muted); font-size: 15.5px; max-width: 64ch; margin: 0; }
+
+.sigla { border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin-bottom: 24px; background: var(--surface); }
+.sigla-row { display: grid; grid-template-columns: 30px minmax(0, 118px) 1fr; gap: 12px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.sigla-row:last-of-type { border-bottom: 0; }
+.sigla-l { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--code); }
+.sigla-en { font-size: 15px; font-weight: 600; font-style: italic; }
+.sigla-es { font-size: 14.5px; color: var(--fg-muted); }
+.sigla-note { font-size: 13.5px; color: var(--fg-faint); margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--border); max-width: none; }
+@media (max-width: 560px) {
+  .sigla-row { grid-template-columns: 30px 1fr; }
+  .sigla-es { grid-column: 2; }
+}
+
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-block: 32px; }
+@media (max-width: 620px) { .compare { grid-template-columns: 1fr; } }
+.cmp { border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; background: var(--surface); min-width: 0; }
+.cmp-good { border-color: var(--model); }
+.cmp-q { font-size: 15px; font-weight: 600; margin: 0 0 12px; color: var(--fg); }
+.cmp-flow { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-faint); padding: 9px 11px; background: var(--surface-sunk); border-radius: 5px; margin-bottom: 12px; overflow-x: auto; white-space: nowrap; }
+.cmp-good .cmp-flow strong { color: var(--data); font-weight: 600; }
+.cmp-a { font-size: 14.5px; color: var(--fg-muted); font-style: italic; margin: 0 0 14px; padding-left: 12px; border-left: 2px solid var(--border-strong); }
+.cmp-good .cmp-a { border-left-color: var(--model); color: var(--fg); font-style: normal; }
+.cmp-verdict { font-size: 13.5px; color: var(--fg-muted); margin: 0; }
+.cmp-verdict strong { color: var(--fg); font-weight: 600; }
+
+.phase { padding-block: 44px 8px; }
+.phase-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+.phase-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 4px;
+}
+.tag-index { background: var(--data-bg); color: var(--data); }
+.tag-query { background: var(--model-bg); color: var(--model); }
+h2 { font-size: clamp(24px, 4vw, 30px); font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+.phase-when { font-size: 14px; color: var(--fg-faint); margin: 0 0 32px; font-family: var(--font-mono); }
+
+.step { display: grid; grid-template-columns: 38px 1fr; gap: 18px; margin-bottom: 34px; }
+.step-n {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-faint);
+  padding-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.step-body { min-width: 0; }
+h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; }
+.step p { margin: 0 0 14px; color: var(--fg-muted); font-size: 15px; max-width: 62ch; }
+.step p:last-child { margin-bottom: 0; }
+.step p strong { color: var(--fg); font-weight: 600; }
+
+pre {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin: 0 0 14px;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--fg);
+}
+code { font-family: var(--font-mono); font-size: 0.92em; }
+p code, li code, td code { background: var(--surface-sunk); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--border); }
+.c1 { color: var(--fg-faint); }
+.k { color: var(--code); font-weight: 500; }
+.s { color: var(--model); }
+.n { color: var(--data); }
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  margin: 0 0 7px;
+  display: block;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 22px 24px;
+  margin-block: 36px;
+}
+.panel h3 { margin-bottom: 10px; }
+.panel p { color: var(--fg-muted); font-size: 15px; margin: 0 0 12px; max-width: 64ch; }
+.panel p:last-child { margin-bottom: 0; }
+
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 620px) { .split { grid-template-columns: 1fr; } }
+.split > div { min-width: 0; }
+
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.tw { overflow-x: auto; margin-bottom: 14px; }
+th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  padding: 0 14px 7px 0;
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap;
+}
+td { padding: 9px 14px 9px 0; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--fg-muted); }
+td:first-child { color: var(--fg); }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.hit td { color: var(--fg); }
+.hit .num { color: var(--model); font-weight: 600; }
+.miss .num { color: var(--fg-faint); }
+
+.callout {
+  border-left: 3px solid var(--data);
+  border-radius: 0;
+  background: var(--data-bg);
+  padding: 14px 18px;
+  margin-block: 18px;
+}
+.callout p { color: var(--fg); font-size: 14.5px; margin: 0; }
+.callout strong { font-weight: 600; }
+
+.vecdemo { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px 24px; margin-block: 36px; }
+.vecrow { display: grid; grid-template-columns: minmax(96px, auto) 1fr auto; gap: 14px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.vecrow:last-of-type { border-bottom: 0; }
+.vecname { font-size: 14px; font-weight: 500; }
+.vecnums { font-family: var(--font-mono); font-size: 12px; color: var(--fg-muted); overflow-x: auto; white-space: nowrap; min-width: 0; }
+.vecsim { font-family: var(--font-mono); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.sim-hi { color: var(--model); }
+.sim-lo { color: var(--fg-faint); }
+@media (max-width: 560px) {
+  .vecrow { grid-template-columns: 1fr auto; }
+  .vecnums { grid-column: 1 / -1; }
+}
+
+footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); }
+footer p { font-size: 14px; color: var(--fg-faint); margin: 0; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <h1>Anatomía de un RAG</h1>
+  <p class="sub">El viaje de un dato, de punta a punta: qué estructura tiene en cada paso, qué corre en Postgres y qué string exacto termina recibiendo el modelo. Todo sobre la tabla <code>entradas</code> de Bitácora.</p>
+</header>
+
+<section class="intro">
+  <h2 style="margin-bottom:14px">Empecemos por qué es</h2>
+  <p class="lede">RAG no es una tecnología, ni una librería, ni un servicio que contratás. <strong>Es el nombre de un patrón de tres pasos</strong>, y se programa con piezas que ya sabés usar. Si lo estuviste buscando como si fuera un componente, ese es el motivo por el que no aparecía.</p>
+
+  <div class="sigla">
+    <div class="sigla-row"><span class="sigla-l">R</span><span class="sigla-en">Retrieval</span><span class="sigla-es">Recuperación — buscás en tus datos</span></div>
+    <div class="sigla-row"><span class="sigla-l">A</span><span class="sigla-en">Augmented</span><span class="sigla-es">Aumentada — con eso mejorás el prompt</span></div>
+    <div class="sigla-row"><span class="sigla-l">G</span><span class="sigla-en">Generation</span><span class="sigla-es">Generación — y el modelo responde</span></div>
+    <p class="sigla-note">La sigla se lee al revés de como sucede: primero recuperás, y eso aumenta la generación. Por eso el orden de las letras confunde.</p>
+  </div>
+
+  <p>La analogía que más sirve: <strong>un examen a libro abierto.</strong> Un modelo sin RAG rinde de memoria — contesta con lo que quedó de su entrenamiento, y si no sabe, completa. Con RAG le pasás las tres páginas del apunte que hablan del tema y le pedís que conteste mirándolas.</p>
+</section>
+
+<div class="compare">
+  <div class="cmp cmp-bad">
+    <span class="label">Sin RAG</span>
+    <p class="cmp-q">¿qué hay que rehacer de la paleta?</p>
+    <div class="cmp-flow">la pregunta → el modelo</div>
+    <p class="cmp-a">"Para rehacer una paleta conviene revisar el contraste, definir un color primario…"</p>
+    <p class="cmp-verdict">Contesta cualquier cosa razonable. <strong>No conoce tus datos</strong>: tus entradas nunca estuvieron en su entrenamiento.</p>
+  </div>
+  <div class="cmp cmp-good">
+    <span class="label">Con RAG</span>
+    <p class="cmp-q">¿qué hay que rehacer de la paleta?</p>
+    <div class="cmp-flow">la pregunta → <strong>buscás 3 entradas</strong> → el modelo</div>
+    <p class="cmp-a">"Los colores de la home: Laura los pidió [1] y marca dijo que el azul no representa [3]."</p>
+    <p class="cmp-verdict">Mismo modelo, misma pregunta. <strong>Lo único que cambió</strong> es que antes de preguntar buscaste.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h3>De qué se compone</h3>
+  <p>Tres pasos, y ninguna pieza es nueva. La de la derecha ya la escribiste en el módulo 8; la del medio es un template string; la de la izquierda es una consulta a tu base.</p>
+  <svg viewBox="0 0 680 210" role="img" style="width:100%;height:auto;margin-top:8px"><title>Los tres pasos del patrón RAG</title><desc>Buscar los fragmentos que importan, pegarlos en el prompt y preguntarle al modelo. Debajo de cada paso, la tecnología que lo implementa.</desc>
+    <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="var(--border-strong)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+    <rect x="12" y="30" width="190" height="80" rx="8" fill="var(--data-bg)" stroke="var(--data)" stroke-width="0.5"/>
+    <text x="107" y="62" text-anchor="middle" fill="var(--data)" font-family="var(--font-display)" font-size="17" font-weight="700">1 · Buscar</text>
+    <text x="107" y="86" text-anchor="middle" fill="var(--data)" font-family="var(--font-display)" font-size="13">lo que importa</text>
+    <text x="107" y="134" text-anchor="middle" fill="var(--fg-faint)" font-family="var(--font-mono)" font-size="11">en tu base de datos</text>
+    <text x="107" y="152" text-anchor="middle" fill="var(--fg-faint)" font-family="var(--font-mono)" font-size="11">postgres + pgvector</text>
+
+    <line x1="210" y1="70" x2="238" y2="70" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#ar)"/>
+
+    <rect x="245" y="30" width="190" height="80" rx="8" fill="var(--code-bg)" stroke="var(--code)" stroke-width="0.5"/>
+    <text x="340" y="62" text-anchor="middle" fill="var(--code)" font-family="var(--font-display)" font-size="17" font-weight="700">2 · Pegar</text>
+    <text x="340" y="86" text-anchor="middle" fill="var(--code)" font-family="var(--font-display)" font-size="13">en el prompt</text>
+    <text x="340" y="134" text-anchor="middle" fill="var(--fg-faint)" font-family="var(--font-mono)" font-size="11">tu código</text>
+    <text x="340" y="152" text-anchor="middle" fill="var(--fg-faint)" font-family="var(--font-mono)" font-size="11">un template string</text>
+
+    <line x1="443" y1="70" x2="471" y2="70" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#ar)"/>
+
+    <rect x="478" y="30" width="190" height="80" rx="8" fill="var(--model-bg)" stroke="var(--model)" stroke-width="0.5"/>
+    <text x="573" y="62" text-anchor="middle" fill="var(--model)" font-family="var(--font-display)" font-size="17" font-weight="700">3 · Preguntar</text>
+    <text x="573" y="86" text-anchor="middle" fill="var(--model)" font-family="var(--font-display)" font-size="13">al modelo</text>
+    <text x="573" y="134" text-anchor="middle" fill="var(--fg-faint)" font-family="var(--font-mono)" font-size="11">el SDK</text>
+    <text x="573" y="152" text-anchor="middle" fill="var(--fg-faint)" font-family="var(--font-mono)" font-size="11">la llamada del módulo 8</text>
+
+    <text x="340" y="190" text-anchor="middle" fill="var(--fg-muted)" font-family="var(--font-display)" font-size="13">Eso es todo. El RAG es el orden, no las piezas.</text>
+  </svg>
+</div>
+
+<div class="panel">
+  <h3>Dónde encajan los embeddings y el chunking</h3>
+  <p>Acá está la confusión que hace que no cierre: los tres no están al mismo nivel. <strong>El chunking y los embeddings viven adentro del paso 1</strong>, y son una forma de buscar mejor — no son el RAG.</p>
+  <svg viewBox="0 0 680 370" role="img" style="width:100%;height:auto;margin-top:8px"><title>Jerarquía: qué contiene a qué</title><desc>El RAG contiene tres pasos. El paso de buscar se puede implementar por palabra exacta o por significado. La búsqueda por significado usa embeddings, y los embeddings necesitan chunking cuando los textos son largos.</desc>
+    <rect x="215" y="14" width="250" height="52" rx="8" fill="var(--surface-sunk)" stroke="var(--border-strong)" stroke-width="0.5"/>
+    <text x="340" y="36" text-anchor="middle" fill="var(--fg)" font-family="var(--font-display)" font-size="16" font-weight="700">RAG</text>
+    <text x="340" y="55" text-anchor="middle" fill="var(--fg-muted)" font-family="var(--font-display)" font-size="12.5">el patrón de 3 pasos</text>
+
+    <path d="M340 66 L340 86" stroke="var(--border-strong)" stroke-width="1" fill="none"/>
+    <path d="M110 86 L570 86" stroke="var(--border-strong)" stroke-width="1" fill="none"/>
+    <path d="M110 86 L110 104" stroke="var(--border-strong)" stroke-width="1" fill="none"/>
+    <path d="M340 86 L340 104" stroke="var(--border-strong)" stroke-width="1" fill="none"/>
+    <path d="M570 86 L570 104" stroke="var(--border-strong)" stroke-width="1" fill="none"/>
+
+    <rect x="22" y="104" width="176" height="44" rx="7" fill="var(--data-bg)" stroke="var(--data)" stroke-width="0.5"/>
+    <text x="110" y="131" text-anchor="middle" fill="var(--data)" font-family="var(--font-display)" font-size="14" font-weight="600">1 · Buscar</text>
+
+    <rect x="252" y="104" width="176" height="44" rx="7" fill="var(--surface-sunk)" stroke="var(--border)" stroke-width="0.5"/>
+    <text x="340" y="131" text-anchor="middle" fill="var(--fg-muted)" font-family="var(--font-display)" font-size="14" font-weight="600">2 · Pegar</text>
+
+    <rect x="482" y="104" width="176" height="44" rx="7" fill="var(--surface-sunk)" stroke="var(--border)" stroke-width="0.5"/>
+    <text x="570" y="131" text-anchor="middle" fill="var(--fg-muted)" font-family="var(--font-display)" font-size="14" font-weight="600">3 · Preguntar</text>
+
+    <path d="M110 148 L110 172" stroke="var(--data)" stroke-width="1" fill="none" opacity="0.5"/>
+    <path d="M110 172 L310 172" stroke="var(--data)" stroke-width="1" fill="none" opacity="0.5"/>
+    <path d="M110 172 L110 190" stroke="var(--data)" stroke-width="1" fill="none" opacity="0.5"/>
+    <path d="M310 172 L310 190" stroke="var(--data)" stroke-width="1" fill="none" opacity="0.5"/>
+
+    <rect x="22" y="190" width="176" height="60" rx="7" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="0.5"/>
+    <text x="110" y="213" text-anchor="middle" fill="var(--fg)" font-family="var(--font-display)" font-size="13.5" font-weight="600">Por palabra</text>
+    <text x="110" y="233" text-anchor="middle" fill="var(--fg-faint)" font-family="var(--font-mono)" font-size="11">LIKE '%paleta%'</text>
+
+    <rect x="222" y="190" width="176" height="60" rx="7" fill="var(--surface)" stroke="var(--data)" stroke-width="1"/>
+    <text x="310" y="213" text-anchor="middle" fill="var(--fg)" font-family="var(--font-display)" font-size="13.5" font-weight="600">Por significado</text>
+    <text x="310" y="233" text-anchor="middle" fill="var(--data)" font-family="var(--font-mono)" font-size="11">embeddings</text>
+
+    <path d="M310 250 L310 276" stroke="var(--data)" stroke-width="1" fill="none" opacity="0.5"/>
+
+    <rect x="222" y="276" width="176" height="60" rx="7" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="0.5"/>
+    <text x="310" y="299" text-anchor="middle" fill="var(--fg)" font-family="var(--font-display)" font-size="13.5" font-weight="600">Chunking</text>
+    <text x="310" y="319" text-anchor="middle" fill="var(--fg-faint)" font-family="var(--font-mono)" font-size="11">si los textos son largos</text>
+
+    <text x="440" y="215" fill="var(--fg-muted)" font-family="var(--font-display)" font-size="12.5">← dos formas de hacer</text>
+    <text x="440" y="233" fill="var(--fg-muted)" font-family="var(--font-display)" font-size="12.5">&nbsp;&nbsp;&nbsp;&nbsp;el mismo paso 1</text>
+    <text x="440" y="301" fill="var(--fg-muted)" font-family="var(--font-display)" font-size="12.5">← preparar el texto</text>
+    <text x="440" y="319" fill="var(--fg-muted)" font-family="var(--font-display)" font-size="12.5">&nbsp;&nbsp;&nbsp;&nbsp;para embeberlo</text>
+  </svg>
+  <p style="margin-top:14px">Los pasos 2 y 3 no tienen ramas: pegar es pegar, y preguntar es la llamada de siempre. <strong>Toda la ingeniería del RAG está en el paso 1.</strong></p>
+</div>
+
+<div class="panel">
+  <h3>El RAG más simple que existe no usa embeddings</h3>
+  <p>Esto termina de probar que es un patrón y no una tecnología. Acá hay un RAG completo, funcionando, con un <code>LIKE</code> de SQL:</p>
+<pre><span class="c1">// 1 · BUSCAR</span>
+<span class="k">const</span> { data: entradas } = <span class="k">await</span> supabase
+  .from(<span class="s">"entradas"</span>).select(<span class="s">"titulo, texto"</span>)
+  .ilike(<span class="s">"texto"</span>, <span class="s">`%${palabraClave}%`</span>).limit(<span class="n">5</span>);
+
+<span class="c1">// 2 · PEGAR</span>
+<span class="k">const</span> contexto = entradas.map(e =&gt; <span class="s">`${e.titulo}\n${e.texto}`</span>).join(<span class="s">"\n\n"</span>);
+
+<span class="c1">// 3 · PREGUNTAR</span>
+<span class="k">await</span> ai.models.generateContent({
+  contents: <span class="s">`Entradas:\n${contexto}\n\nPregunta: ${pregunta}`</span>
+});</pre>
+  <p>Nueve líneas, cero embeddings, cero pgvector. <strong>Eso ya es un RAG.</strong> Funciona, y falla en un solo caso: si la entrada dice "cambiar los colores" y preguntás por "la paleta", el <code>LIKE</code> no encuentra nada.</p>
+  <p>Los embeddings existen para arreglar exactamente ese caso. <strong>Son una mejora del paso 1, no un requisito del patrón.</strong></p>
+</div>
+
+<div class="panel">
+  <h3>Lo primero: son dos programas distintos</h3>
+  <p>La confusión más común es pensar el RAG como un solo flujo. Son dos, corren en momentos distintos y se tocan en un solo lugar: la columna <code>embedding</code>.</p>
+  <div class="split">
+    <div>
+      <span class="label">Indexación</span>
+      <p style="font-size:14px">Corre <strong>una vez por entrada</strong>, cuando el usuario guarda. Convierte texto en vector y lo escribe en la fila.</p>
+    </div>
+    <div>
+      <span class="label">Consulta</span>
+      <p style="font-size:14px">Corre <strong>en cada pregunta</strong>. Convierte la pregunta en vector, busca las filas más cercanas y arma el prompt.</p>
+    </div>
+  </div>
+</div>
+
+<section class="phase">
+  <div class="phase-head">
+    <span class="phase-tag tag-index">Fase 1</span>
+    <h2>Indexación</h2>
+  </div>
+  <p class="phase-when">// una vez por entrada, dentro del route handler que ya extrae los pendientes</p>
+
+  <div class="step">
+    <div class="step-n">1.1</div>
+    <div class="step-body">
+      <h3>Entra el texto crudo</h3>
+      <p>Lo que el usuario escribió en el formulario, sin procesar.</p>
+      <span class="label">Payload del POST</span>
+<pre>{
+  <span class="k">"titulo"</span>: <span class="s">"Reunión con Laura — rediseño"</span>,
+  <span class="k">"texto"</span>: <span class="s">"Laura pidió cambiar los colores de la home.</span>
+<span class="s">            Quedé en mandarle dos propuestas el viernes."</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">1.2</div>
+    <div class="step-body">
+      <h3>¿Hace falta chunking?</h3>
+      <p>Chunking es partir un texto largo en fragmentos antes de embeberlo. La decisión se toma acá y depende de una sola cosa: <strong>cuántos temas distintos tiene el texto.</strong></p>
+      <div class="split">
+        <div>
+          <span class="label">Bitácora — no</span>
+<pre>texto: <span class="n">312</span> caracteres
+temas: <span class="n">1</span>
+─────────────────────
+<span class="c1">→ 1 fragmento = la entrada</span></pre>
+        </div>
+        <div>
+          <span class="label">Un PDF de 40 páginas — sí</span>
+<pre>texto: <span class="n">98.400</span> caracteres
+temas: <span class="n">~25</span>
+─────────────────────
+<span class="c1">→ ~40 fragmentos de 200-500
+  palabras, cortados por
+  sección</span></pre>
+        </div>
+      </div>
+      <p>La regla que decide dónde cortar: <strong>cada fragmento tiene que entenderse solo.</strong> Si un fragmento dice "esto hay que cambiarlo" sin decir qué, es inútil recuperado fuera de contexto.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">1.3</div>
+    <div class="step-body">
+      <h3>El texto se convierte en vector</h3>
+      <p>Una llamada a la API de embeddings. No es una llamada a un LLM: no genera texto, no razona, no tiene prompt. Entra un string, sale un array de números de largo fijo.</p>
+      <span class="label">La llamada</span>
+<pre><span class="k">const</span> r = <span class="k">await</span> ai.models.<span class="k">embedContent</span>({
+  model: <span class="s">"gemini-embedding-2"</span>,
+  contents: texto,
+  config: { outputDimensionality: <span class="n">768</span> }   <span class="c1">// ← tiene que coincidir con vector(768)</span>
+});
+<span class="k">const</span> vector = r.embeddings[<span class="n">0</span>].values;</pre>
+      <span class="label">Lo que vuelve</span>
+<pre>[
+   <span class="n">0.0231</span>, <span class="n">-0.0847</span>,  <span class="n">0.1124</span>, <span class="n">-0.0392</span>,  <span class="n">0.0663</span>,
+  <span class="n">-0.0158</span>,  <span class="n">0.0977</span>, <span class="n">-0.0541</span>,  <span class="n">0.0289</span>, <span class="n">-0.1003</span>,
+  <span class="c1">… 758 números más</span>
+]
+<span class="c1">length: 768   ·   cada valor entre -1 y 1</span></pre>
+      <div class="callout">
+        <p><strong>Ese array no es un resumen.</strong> No se puede volver a convertir en texto, no hay una dimensión que signifique "colores" ni otra que signifique "Laura". Es una coordenada: su único uso es medir distancia contra otras coordenadas del mismo espacio.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">1.4</div>
+    <div class="step-body">
+      <h3>El vector se guarda en la fila</h3>
+      <p>No hay base de datos aparte. El vector es una columna más de la misma tabla, al lado del texto que lo originó.</p>
+      <span class="label">DDL</span>
+<pre><span class="k">create extension if not exists</span> vector;
+
+<span class="k">alter table</span> entradas <span class="k">add column</span> embedding <span class="k">vector</span>(<span class="n">768</span>);</pre>
+      <span class="label">La fila, después del UPDATE</span>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Columna</th><th>Tipo</th><th>Valor</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="num">uuid</td><td class="num">3f2a9c10-7b4e-…</td></tr>
+            <tr><td><code>user_id</code></td><td class="num">uuid</td><td class="num">8d1e4b22-0a93-…</td></tr>
+            <tr><td><code>titulo</code></td><td class="num">text</td><td>Reunión con Laura — rediseño</td></tr>
+            <tr><td><code>texto</code></td><td class="num">text</td><td>Laura pidió cambiar los colores…</td></tr>
+            <tr><td><code>pendientes</code></td><td class="num">jsonb</td><td class="num">["Mandar dos propuestas…"]</td></tr>
+            <tr><td><code>embedding</code></td><td class="num">vector(768)</td><td class="num">[0.0231, -0.0847, …]</td></tr>
+            <tr><td><code>created_at</code></td><td class="num">timestamptz</td><td class="num">2026-09-15 14:22:07+00</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>El texto y su vector viven juntos.</strong> Por eso la búsqueda puede devolver el contenido original sin un segundo viaje, y por eso las políticas RLS que ya escribiste siguen protegiendo todo.</p>
+    </div>
+  </div>
+</section>
+
+<section class="phase">
+  <div class="phase-head">
+    <span class="phase-tag tag-query">Fase 2</span>
+    <h2>Consulta</h2>
+  </div>
+  <p class="phase-when">// en cada pregunta, dentro de /api/preguntar</p>
+
+  <div class="step">
+    <div class="step-n">2.1</div>
+    <div class="step-body">
+      <h3>La pregunta pasa por el mismo proceso</h3>
+      <p>Exactamente la misma llamada del paso 1.3, con el <strong>mismo modelo y las mismas dimensiones</strong>. Si acá usaras otro modelo, estarías midiendo distancias entre puntos de dos mapas distintos.</p>
+<pre><span class="k">const</span> q = <span class="k">await</span> ai.models.<span class="k">embedContent</span>({
+  model: <span class="s">"gemini-embedding-2"</span>,       <span class="c1">// ← el mismo que en 1.3</span>
+  contents: <span class="s">"¿qué hay que rehacer de la paleta?"</span>,
+  config: { outputDimensionality: <span class="n">768</span> }
+});</pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">2.2</div>
+    <div class="step-body">
+      <h3>Postgres compara contra todas las filas</h3>
+      <p>El operador <code>&lt;=&gt;</code> calcula la distancia coseno entre dos vectores. <code>ORDER BY</code> por esa distancia y <code>LIMIT 5</code>: eso es toda la búsqueda semántica.</p>
+<pre><span class="k">create or replace function</span> buscar_entradas(
+  query_embedding <span class="k">vector</span>(<span class="n">768</span>),
+  cantidad <span class="k">int default</span> <span class="n">5</span>
+)
+<span class="k">returns table</span> (id uuid, titulo text, texto text, similitud float)
+<span class="k">language</span> sql <span class="k">stable security invoker as</span> $$
+  <span class="k">select</span>
+    entradas.id,
+    entradas.titulo,
+    entradas.texto,
+    <span class="n">1</span> - (entradas.embedding <span class="k">&lt;=&gt;</span> query_embedding) <span class="k">as</span> similitud
+  <span class="k">from</span> entradas
+  <span class="k">where</span> entradas.user_id = <span class="k">auth.uid</span>()      <span class="c1">// ← de la sesión, no del cliente</span>
+    <span class="k">and</span> entradas.embedding <span class="k">is not null</span>
+  <span class="k">order by</span> entradas.embedding <span class="k">&lt;=&gt;</span> query_embedding
+  <span class="k">limit</span> cantidad;
+$$;</pre>
+      <div class="callout">
+        <p><strong>El <code>where user_id</code> es la línea más importante del archivo.</strong> Sin ella la búsqueda recorre las entradas de todos los usuarios de la app. Y tiene que salir de <code>auth.uid()</code>, no de un parámetro: un parámetro que llega del navegador lo puede cambiar cualquiera desde la consola.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">2.3</div>
+    <div class="step-body">
+      <h3>Vuelven cinco filas, ordenadas por similitud</h3>
+      <p>De 200 entradas a 5. La columna <code>similitud</code> va de 0 a 1 y es la que te permite diagnosticar: si el primer resultado está en 0.40, la búsqueda no encontró nada bueno.</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>#</th><th>Título</th><th>Similitud</th></tr></thead>
+          <tbody>
+            <tr class="hit"><td class="num">1</td><td>Reunión con Laura — rediseño</td><td class="num">0.891</td></tr>
+            <tr class="hit"><td class="num">2</td><td>Llamada rápida por la home</td><td class="num">0.774</td></tr>
+            <tr class="hit"><td class="num">3</td><td>Feedback del equipo de marca</td><td class="num">0.712</td></tr>
+            <tr class="miss"><td class="num">4</td><td>Presupuesto Q4</td><td class="num">0.383</td></tr>
+            <tr class="miss"><td class="num">5</td><td>Alta del proveedor nuevo</td><td class="num">0.341</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Fijate en la entrada 1: dice <strong>"cambiar los colores"</strong> y la pregunta decía <strong>"rehacer la paleta"</strong>. Cero palabras en común, similitud 0.891. Eso es lo que un <code>LIKE '%paleta%'</code> nunca habría encontrado.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">2.4</div>
+    <div class="step-body">
+      <h3>Se arma el prompt con esos cinco</h3>
+      <p>Acá el RAG deja de ser matemática y vuelve a ser un string. Esto es literalmente lo que recibe el modelo:</p>
+      <span class="label">systemInstruction</span>
+<pre><span class="s">Respondé preguntas sobre las entradas del usuario usando ÚNICAMENTE
+las entradas que te paso.
+
+- Si la respuesta no está en ellas, decí "No encontré esa información
+  en tus entradas". No completes con suposiciones.
+- Citá de qué entrada sacaste cada dato, con su número entre corchetes.
+- Sé breve y concreto.</span></pre>
+      <span class="label">contents</span>
+<pre><span class="s">Entradas:
+
+[1] 2026-09-15 · Reunión con Laura — rediseño
+Laura pidió cambiar los colores de la home. Quedé en mandarle
+dos propuestas el viernes.
+
+[2] 2026-09-08 · Llamada rápida por la home
+Revisamos el hero. Quedó pendiente definir la tipografía.
+
+[3] 2026-08-29 · Feedback del equipo de marca
+Dijeron que el azul actual no representa la marca.
+
+Pregunta: ¿qué hay que rehacer de la paleta?</span></pre>
+      <p><strong>El modelo nunca vio tu base de datos.</strong> Vio este string. Todo lo que sabe de tus entradas en esta respuesta se lo diste vos, en esta llamada, en estos caracteres.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">2.5</div>
+    <div class="step-body">
+      <h3>La respuesta vuelve con sus fuentes</h3>
+      <p>Las citas no son decoración: son lo que permite verificar. Un RAG sin fuentes visibles es un generador de afirmaciones plausibles.</p>
+<pre>{
+  <span class="k">"respuesta"</span>: <span class="s">"Hay que rehacer los colores de la home: Laura los pidió</span>
+<span class="s">                 explícitamente [1], y el equipo de marca marcó que el azul</span>
+<span class="s">                 actual no representa la marca [3]. Quedaste en mandar dos</span>
+<span class="s">                 propuestas el viernes [1]."</span>,
+  <span class="k">"fuentes"</span>: [
+    { <span class="k">"n"</span>: <span class="n">1</span>, <span class="k">"id"</span>: <span class="s">"3f2a9c10…"</span>, <span class="k">"titulo"</span>: <span class="s">"Reunión con Laura…"</span>, <span class="k">"fecha"</span>: <span class="s">"2026-09-15"</span> },
+    { <span class="k">"n"</span>: <span class="n">3</span>, <span class="k">"id"</span>: <span class="s">"a71c04ff…"</span>, <span class="k">"titulo"</span>: <span class="s">"Feedback del equipo…"</span>, <span class="k">"fecha"</span>: <span class="s">"2026-08-29"</span> }
+  ]
+}</pre>
+    </div>
+  </div>
+</section>
+
+<div class="vecdemo">
+  <h3 style="margin-bottom:8px">Por qué "cerca" es aritmética</h3>
+  <p style="color:var(--fg-muted); font-size:15px; margin:0 0 20px; max-width:62ch">Con 768 dimensiones no se puede dibujar. Con 4 sí, y la operación es exactamente la misma: coseno entre dos vectores, que da 1 cuando apuntan igual y 0 cuando no tienen nada que ver.</p>
+
+  <div class="vecrow">
+    <div class="vecname">La pregunta</div>
+    <div class="vecnums">[ 0.82, &nbsp;0.31, −0.12, &nbsp;0.45 ]</div>
+    <div class="vecsim" style="color:var(--fg-faint)">—</div>
+  </div>
+  <div class="vecrow">
+    <div class="vecname">Entrada A</div>
+    <div class="vecnums">[ 0.79, &nbsp;0.28, −0.09, &nbsp;0.51 ]</div>
+    <div class="vecsim sim-hi">0.997</div>
+  </div>
+  <div class="vecrow">
+    <div class="vecname">Entrada B</div>
+    <div class="vecnums">[ −0.22, &nbsp;0.61, &nbsp;0.77, −0.13 ]</div>
+    <div class="vecsim sim-lo">0.048</div>
+  </div>
+
+  <p style="color:var(--fg-muted); font-size:14.5px; margin:20px 0 0; max-width:62ch">Postgres hace esta cuenta contra cada fila que tenga <code>embedding</code>, ordena por el resultado y te devuelve las cinco primeras. Con cientos de filas eso son milisegundos y no necesita índice; el índice aparece cuando son cientos de miles.</p>
+</div>
+
+<div class="panel">
+  <h3>Los cuatro errores de estructura</h3>
+  <p>Todos producen el mismo síntoma — "no encuentra nada" o "trae cualquier cosa" — y se diagnostican en lugares distintos.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Error</th><th>Cómo se ve</th><th>Dónde se arregla</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Dimensiones distintas</td>
+          <td><code>expected 768 dimensions, not 3072</code></td>
+          <td>El <code>vector(N)</code> y el <code>outputDimensionality</code></td>
+        </tr>
+        <tr>
+          <td>Modelo distinto entre index y query</td>
+          <td>Trae resultados sin relación, sin error</td>
+          <td>Que 1.3 y 2.1 usen el mismo string de modelo</td>
+        </tr>
+        <tr>
+          <td>Filas sin <code>embedding</code></td>
+          <td>Existen en la tabla y son invisibles a la búsqueda</td>
+          <td>Backfill: <code>where embedding is null</code></td>
+        </tr>
+        <tr>
+          <td>Texto editado sin regenerar el vector</td>
+          <td>La encuentra por lo que decía antes</td>
+          <td>Regenerar el embedding en cada update del texto</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>El tercero y el cuarto son los peligrosos, porque <strong>no tiran ningún error</strong>. Un RAG con embeddings desactualizados no se rompe: responde con seguridad sobre contenido que ya no existe.</p>
+</div>
+
+<footer>
+  <p>Bitácora · AI Builders Program — Módulo 10</p>
+</footer>
+
+</div>
+
+</body></html>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import FormularioEntrada from "@/components/FormularioEntrada";
 import ListaEntradas from "@/components/ListaEntradas";
+import Preguntar from "@/components/Preguntar";
 import { supabase } from "@/lib/supabase";
 import type { Entrada } from "@/lib/types";
 
@@ -88,6 +89,9 @@ export default function EntradasPage() {
         onAnalizando={setAnalizandoId}
         onAnalizado={() => setAnalizandoId(null)}
       />
+
+      {/* Preguntar va arriba de la lista; si falla, no afecta a las entradas */}
+      <Preguntar />
 
       <div className="mt-10">
         {cargando ? (
